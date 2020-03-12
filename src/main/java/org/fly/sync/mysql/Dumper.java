@@ -1,6 +1,11 @@
 package org.fly.sync.mysql;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.istack.NotNull;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.Scheduler;
 import org.fly.sync.action.ChangePositionAction;
 import org.fly.sync.action.InsertAction;
 import org.fly.sync.contract.AbstractAction;
@@ -17,11 +22,6 @@ import org.fly.sync.mysql.parser.PositionParser;
 import org.fly.sync.setting.BinLog;
 import org.fly.sync.setting.Config;
 import org.fly.sync.setting.River;
-import com.sun.istack.NotNull;
-import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.Scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +29,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -98,7 +99,7 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
          * schemaName table1 table2 table3 table4
          */
         River.Database database = getRiverDatabase();
-        cmd.append(config.mysqldump)
+        cmd.append(" exec ").append(config.mysqldump)
             .append(" --host=")
             .append(river.my.host)
             .append(" --port=")
@@ -112,6 +113,7 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
             .append(" --master-data --single-transaction --skip-lock-tables --compact --skip-opt --quick --hex-blob --no-create-info --skip-extended-insert --set-gtid-purged=OFF ")
             .append(database.schemaName);
 
+
         for (Map.Entry<String, River.Table> tableEntry: database.tables.entrySet()
              ) {
             if (!tableEntry.getValue().sync.created)
@@ -120,17 +122,22 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
             cmd.append(" ");
             cmd.append(tableEntry.getKey());
         }
+//        cmd.append("\\' ");
 
-        logger.info(cmd.toString().replace(river.my.password, "*"));
+        logger.info(cmd.toString());
+
+
 
         try {
-            process = Runtime.getRuntime().exec(cmd.toString());
+            ProcessBuilder p = new ProcessBuilder(Arrays.asList("docker", "exec", "my_mysql_8", "sh", "-c", cmd.toString()));
+//            p.command("");
+            process = p.start();
+//            process = Runtime.getRuntime().exec(cmd.toString());
 
         } catch (IOException e)
         {
             return Observable.error(new DumpFatalException(e));
         }
-
         logger.info("Dump database [{}] from mysqldump.", database.schemaName);
 
         return Observable.merge(
