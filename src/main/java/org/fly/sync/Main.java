@@ -1,16 +1,16 @@
 package org.fly.sync;
 
-import org.fly.sync.executor.Executor;
-import org.fly.sync.setting.Setting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.fly.sync.executor.Executor;
+import org.fly.sync.setting.Setting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
 
-    public final static Logger logger = LoggerFactory.getLogger(Main.class);
+    public static Logger logger = null;
     private final static Thread mainThread = Thread.currentThread();
 
     public static void main(String[] argv) {
@@ -20,6 +20,8 @@ public class Main {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             return;
+        } finally {
+            logger = LoggerFactory.getLogger(Main.class);
         }
 
         logger.info("## set default uncaught exception handler");

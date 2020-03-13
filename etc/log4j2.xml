@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="error" monitorInterval="5" shutdownHook="disable">
     <Properties>
-        <Property name="APP_LOG_ROOT">$${sys:me.log.path}</Property>
+        <Property name="APP_LOG_ROOT">${sys:me.log.path}</Property>
     </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">

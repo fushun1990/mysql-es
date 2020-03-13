@@ -29,22 +29,19 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-public class Dumper extends AbstractLifeCycle implements DbFactory {
+public class DumperDefault extends AbstractLifeCycle implements DbFactory {
 
+    public final static Logger logger = LoggerFactory.getLogger(DumperDefault.class);
     private Config config;
     private River river;
     private DbFactory dbFactory;
     private BinLog.Position position = new BinLog.Position();
     private Process process;
 
-    public final static Logger logger = LoggerFactory.getLogger(Dumper.class);
-
-    public Dumper(@NotNull Config config, @NotNull River river, DbFactory dbFactory)
-    {
+    public DumperDefault(@NotNull Config config, @NotNull River river, DbFactory dbFactory) {
         this.config = config;
         this.river = river;
         this.dbFactory = dbFactory;
@@ -88,8 +85,7 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
         return dbFactory.getJsonMapper();
     }
 
-    public Observable<AbstractAction> run(Scheduler scheduler)
-    {
+    public Observable<AbstractAction> run(Scheduler scheduler) {
         StringBuilder cmd = new StringBuilder();
 
         /*
@@ -99,45 +95,38 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
          * schemaName table1 table2 table3 table4
          */
         River.Database database = getRiverDatabase();
-        cmd.append(" exec ").append(config.mysqldump)
-            .append(" --host=")
-            .append(river.my.host)
-            .append(" --port=")
-            .append(river.my.port)
-            .append(" --user=")
-            .append(river.my.user)
-            .append(" --password=")
-            .append(river.my.password)
-            .append(" --default-character-set=")
-            .append(river.charset)
-            .append(" --master-data --single-transaction --skip-lock-tables --compact --skip-opt --quick --hex-blob --no-create-info --skip-extended-insert --set-gtid-purged=OFF ")
-            .append(database.schemaName);
+        cmd.append(config.mysqldump)
+                .append(" --host=")
+                .append(river.my.host)
+                .append(" --port=")
+                .append(river.my.port)
+                .append(" --user=")
+                .append(river.my.user)
+                .append(" --password=")
+                .append(river.my.password)
+                .append(" --default-character-set=")
+                .append(river.charset)
+                .append(" --master-data --single-transaction --skip-lock-tables --compact --skip-opt --quick --hex-blob --no-create-info --skip-extended-insert --set-gtid-purged=OFF ")
+                .append(database.schemaName);
 
-
-        for (Map.Entry<String, River.Table> tableEntry: database.tables.entrySet()
-             ) {
+        for (Map.Entry<String, River.Table> tableEntry : database.tables.entrySet()
+        ) {
             if (!tableEntry.getValue().sync.created)
                 continue;
 
             cmd.append(" ");
             cmd.append(tableEntry.getKey());
         }
-//        cmd.append("\\' ");
 
-        logger.info(cmd.toString());
-
-
+        logger.info(cmd.toString().replace(river.my.password, "*"));
 
         try {
-            ProcessBuilder p = new ProcessBuilder(Arrays.asList("docker", "exec", "my_mysql_8", "sh", "-c", cmd.toString()));
-//            p.command("");
-            process = p.start();
-//            process = Runtime.getRuntime().exec(cmd.toString());
+            process = Runtime.getRuntime().exec(cmd.toString());
 
-        } catch (IOException e)
-        {
+        } catch (IOException e) {
             return Observable.error(new DumpFatalException(e));
         }
+
         logger.info("Dump database [{}] from mysqldump.", database.schemaName);
 
         return Observable.merge(
@@ -148,22 +137,21 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
                         .subscribeOn(scheduler)
                         .observeOn(scheduler)
 
-                )
-            .doOnError(
-                    throwable -> {
-                        position.reset();
-                        process.destroy();
-                        process = null;
-                    }
-            );
+        )
+                .doOnError(
+                        throwable -> {
+                            position.reset();
+                            process.destroy();
+                            process = null;
+                        }
+                );
     }
 
-    private Observable<AbstractAction> dataObservable(Process process)
-    {
+    private Observable<AbstractAction> dataObservable(Process process) {
         return Observable.create(new DataEmitter(process));
     }
 
-    private Observable<AbstractAction> errorObservable(Process process){
+    private Observable<AbstractAction> errorObservable(Process process) {
 
         return Observable.create(observableEmitter -> {
             String s;
@@ -171,8 +159,7 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
             try (
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))
             ) {
-                while(Executor.isRunning() && isStart())
-                {
+                while (Executor.isRunning() && isStart()) {
                     s = bufferedReader.readLine();
                     if (s == null)
                         break;
@@ -185,8 +172,7 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
 
                 observableEmitter.onComplete();
 
-            } catch (IOException e)
-            {
+            } catch (IOException e) {
                 observableEmitter.onError(new DumpFatalException(e));
 
             }
@@ -200,19 +186,17 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
             this.position.updateFrom(position);
     }
 
-    private class DataEmitter implements ObservableOnSubscribe<AbstractAction>
-    {
-        private Process process;
+    private class DataEmitter implements ObservableOnSubscribe<AbstractAction> {
         String lastTable = null;
         List<List<String>> insertData = new ArrayList<>();
         ObservableEmitter<AbstractAction> observableEmitter;
+        private Process process;
 
         DataEmitter(Process process) {
             this.process = process;
         }
 
-        void addInsertData(String table, List<String> data)
-        {
+        void addInsertData(String table, List<String> data) {
             if (!table.equalsIgnoreCase(lastTable) || insertData.size() >= config.bulkSize)
                 emit();
 
@@ -220,10 +204,8 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
             lastTable = table;
         }
 
-        private void emit()
-        {
-            if (insertData.isEmpty())
-            {
+        private void emit() {
+            if (insertData.isEmpty()) {
                 lastTable = null;
                 return;
             }
@@ -231,9 +213,8 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
             Records records = getMySql().getUtcQuery().mixRecords(getRiverDatabase().schemaName, lastTable, insertData, true);
             if (records == null)
                 logger.warn("Lost {} records.", insertData.size());
-            else
-            {
-                for (Record record: records
+            else {
+                for (Record record : records
                 ) {
                     record.setInserted();
                     observableEmitter.onNext(InsertAction.create(record));
@@ -252,18 +233,15 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
 
             try (
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()))
-            ){
+            ) {
 
-                while(Executor.isRunning() && isStart())
-                {
-                    if (getStatistic().getDumpCount().get() - getStatistic().getRecordCount().get() > config.bulkSize * 5)
-                    {
+                while (Executor.isRunning() && isStart()) {
+                    if (getStatistic().getDumpCount().get() - getStatistic().getRecordCount().get() > config.bulkSize * 5) {
                         //logger.info("Dump {} and subscribe {}, sleep 0.1s", total, getRecordCount.get());
                         try {
 
                             Thread.sleep(100);
-                        } catch (InterruptedException e)
-                        {
+                        } catch (InterruptedException e) {
                             break;
                         }
                         continue;
@@ -271,20 +249,17 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
 
                     sql = bufferedReader.readLine();
 
-                    if (sql == null)
-                    {
+                    if (sql == null) {
                         emit();
                         break;
                     }
 
                     getStatistic().getDumpCount().incrementAndGet();
 
-                    if (sql.startsWith("CHANGE MASTER TO MASTER_LOG_FILE"))
-                    {
+                    if (sql.startsWith("CHANGE MASTER TO MASTER_LOG_FILE")) {
                         emit();
                         parsePosition(sql);
-                    } else if (sql.startsWith("INSERT INTO"))
-                    {
+                    } else if (sql.startsWith("INSERT INTO")) {
                         String tableName = InsertParser.parseTable(sql);
                         if (tableName != null && !tableName.isEmpty()) {
                             List<String> data = InsertParser.parseValue(sql);
@@ -305,8 +280,7 @@ public class Dumper extends AbstractLifeCycle implements DbFactory {
 
                 observableEmitter.onComplete();
 
-            } catch (IOException e)
-            {
+            } catch (IOException e) {
                 observableEmitter.onError(new DumpFatalException(e));
 
             }

@@ -1,6 +1,9 @@
 package org.fly.sync.executor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.reactivex.Observable;
+import io.reactivex.Scheduler;
+import io.reactivex.functions.Function;
 import org.fly.sync.action.ReportAction;
 import org.fly.sync.canal.Canal;
 import org.fly.sync.contract.AbstractAction;
@@ -9,14 +12,11 @@ import org.fly.sync.contract.AbstractRecordAction;
 import org.fly.sync.contract.DbFactory;
 import org.fly.sync.es.Es;
 import org.fly.sync.exception.EsFatalException;
-import org.fly.sync.mysql.Dumper;
+import org.fly.sync.mysql.DumperDockerr;
 import org.fly.sync.mysql.MySql;
 import org.fly.sync.mysql.relation.Relation;
 import org.fly.sync.setting.River;
 import org.fly.sync.setting.Setting;
-import io.reactivex.Observable;
-import io.reactivex.Scheduler;
-import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +33,7 @@ public class Emiter extends AbstractLifeCycle implements DbFactory {
     private Executor executor;
     private River.Database database;
     private Canal canal = null;
-    private Dumper dumper = null;
+    private DumperDockerr dumper = null;
 
     public Emiter(Executor executor, River.Database database) {
         this.executor = executor;
@@ -136,7 +136,7 @@ public class Emiter extends AbstractLifeCycle implements DbFactory {
         if (!Setting.binLog.isEmpty(database.schemaName))
             return Observable.empty();
 
-        dumper = new Dumper(Setting.config, Setting.river, this);
+        dumper = new DumperDockerr(Setting.config, Setting.river, this);
         dumper.start();
 
         return dumper.run(scheduler)

@@ -2,12 +2,12 @@ package org.fly.sync.setting;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import org.fly.core.io.IoUtils;
-import org.fly.core.text.json.Jsonable;
-import org.fly.sync.exception.ConfigException;
 import com.sun.istack.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.fly.core.io.IoUtils;
+import org.fly.core.text.json.Jsonable;
+import org.fly.sync.exception.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +31,7 @@ public class Setting {
     public final static String CONFIG_FILE = "config.json";
     public final static String BINLOG_FILE = "binlog.json";
 
-    public final static Logger logger = LoggerFactory.getLogger(Setting.class);
+    public static Logger logger = null;
     public static Config config;
     public static River river;
     public static BinLog binLog;
@@ -71,6 +71,7 @@ public class Setting {
 
         if (config.logDir == null) {
             config.logDir = getEtcPath("logs");
+            getLogger();
             logger.warn("Invaid [log_dir] in \"{}\", Redirect path to default.", CONFIG_FILE);
         }
 
@@ -81,11 +82,13 @@ public class Setting {
         LoggerContext context = (org.apache.logging.log4j.core.LoggerContext) LogManager.getContext(false);
         context.setConfigLocation(getEtcPath("log4j2.xml").toURI());
 
+        getLogger();
         if (config.dataDir == null)
         {
             config.dataDir = getEtcPath("data");
             logger.warn("Invaid [data_dir] in \"{}\", path to default.", CONFIG_FILE);
         }
+
 
         config.dataDir = getEtcPath(config.dataDir);
         System.setProperty("me.data.path", config.dataDir.getAbsolutePath());
@@ -214,5 +217,9 @@ public class Setting {
         getConfig();
         getRiver();
         getBinLog();
+    }
+
+    private static void getLogger() {
+        logger = LoggerFactory.getLogger(Setting.class);
     }
 }
