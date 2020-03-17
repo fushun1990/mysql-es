@@ -33,7 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-public class DumperDockerr extends AbstractLifeCycle implements DbFactory {
+public class DumperDocker extends AbstractLifeCycle implements DbFactory {
 
     private Config config;
     private River river;
@@ -41,10 +41,9 @@ public class DumperDockerr extends AbstractLifeCycle implements DbFactory {
     private BinLog.Position position = new BinLog.Position();
     private Process process;
 
-    public final static Logger logger = LoggerFactory.getLogger(DumperDockerr.class);
+    public final static Logger logger = LoggerFactory.getLogger(DumperDocker.class);
 
-    public DumperDockerr(@NotNull Config config, @NotNull River river, DbFactory dbFactory)
-    {
+    public DumperDocker(@NotNull Config config, @NotNull River river, DbFactory dbFactory) {
         this.config = config;
         this.river = river;
         this.dbFactory = dbFactory;

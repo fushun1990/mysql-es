@@ -12,7 +12,7 @@ import org.fly.sync.contract.AbstractRecordAction;
 import org.fly.sync.contract.DbFactory;
 import org.fly.sync.es.Es;
 import org.fly.sync.exception.EsFatalException;
-import org.fly.sync.mysql.DumperDockerr;
+import org.fly.sync.mysql.DumperDocker;
 import org.fly.sync.mysql.MySql;
 import org.fly.sync.mysql.relation.Relation;
 import org.fly.sync.setting.River;
@@ -33,7 +33,7 @@ public class Emiter extends AbstractLifeCycle implements DbFactory {
     private Executor executor;
     private River.Database database;
     private Canal canal = null;
-    private DumperDockerr dumper = null;
+    private DumperDocker dumper = null;
 
     public Emiter(Executor executor, River.Database database) {
         this.executor = executor;
@@ -136,7 +136,7 @@ public class Emiter extends AbstractLifeCycle implements DbFactory {
         if (!Setting.binLog.isEmpty(database.schemaName))
             return Observable.empty();
 
-        dumper = new DumperDockerr(Setting.config, Setting.river, this);
+        dumper = new DumperDocker(Setting.config, Setting.river, this);
         dumper.start();
 
         return dumper.run(scheduler)

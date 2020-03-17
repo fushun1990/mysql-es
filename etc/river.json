@@ -41,11 +41,11 @@
           // Default: true, If this table donot need sync, Or you only wanna other table relates to this table, set false.
           "sync": true,
           // What ES INDEX name, the items is same as "${SCHEMA}-${TABLE}", support ${SCHEMA}, ${TABLE}
-          "index": "db1-table_name",
+          "index": "shop_goods",
           // Also support ${SCHEMA}, ${TABLE} like above, default: "_doc"
           "type": "_doc",
           // What ES template do this index use, default: ""
-          "template" : "",
+          "template": "template_smartcn.json",
           // SimpleDateFormat
           "date_format": "yyyy-MM-dd'T'HH:mm:ss.SSSZZ",
           // What Primary key, default: ["id"]
@@ -53,7 +53,9 @@
             "goods_id"
           ],
           // What columnNames you wanna sync to this index, default: ["*"]
-          "columns": ["*"],
+          "columns": [
+            "*"
+          ],
           // Column alias
           "column_alias": {
             // "Column Name" : "New name"
